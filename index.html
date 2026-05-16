@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web FPV Simulator</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Import maps for ES modules to load Three.js and Cannon-es cleanly -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="sim-container"></div>
+
+    <!-- UI Overlay: Launch Menu -->
+    <div id="launch-menu" class="ui-overlay glass-panel active">
+        <h1>FPV Web Simulator</h1>
+        <div class="menu-content">
+            <div class="section input-check">
+                <h2>Controller Status</h2>
+                <div id="gamepad-status" class="status-indicator disconnected">No Gamepad Detected</div>
+                <div class="sticks-visualizer">
+                    <div class="stick-box"><div id="stick-left" class="stick-dot"></div></div>
+                    <div class="stick-box"><div id="stick-right" class="stick-dot"></div></div>
+                </div>
+                <p class="small-text">Move sticks to verify. Use an FPV Radio (e.g. TBS Tango, Radiomaster) via USB.</p>
+                <div class="axis-bars">
+                    <div class="bar-container"><label>T (0)</label><div class="bar-fill" id="bar-t"></div></div>
+                    <div class="bar-container"><label>Y (3)</label><div class="bar-fill" id="bar-y"></div></div>
+                    <div class="bar-container"><label>P (2)</label><div class="bar-fill" id="bar-p"></div></div>
+                    <div class="bar-container"><label>R (1)</label><div class="bar-fill" id="bar-r"></div></div>
+                </div>
+            </div>
+
+            <div class="section mapping">
+                <h2>Axis Mapping</h2>
+                <div class="mapping-grid">
+                    <div class="map-row"><label>Throttle (Axis):</label> <input type="number" id="map-t-idx" value="0" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-t-rev"> Rev</label></div>
+                    <div class="map-row"><label>Yaw (Axis):</label> <input type="number" id="map-y-idx" value="3" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-y-rev"> Rev</label></div>
+                    <div class="map-row"><label>Pitch (Axis):</label> <input type="number" id="map-p-idx" value="2" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-p-rev"> Rev</label></div>
+                    <div class="map-row"><label>Roll (Axis):</label> <input type="number" id="map-r-idx" value="1" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-r-rev"> Rev</label></div>
+                    <div class="map-row"><label>Arm (Button):</label> <input type="number" id="map-arm-idx" value="0" min="0" max="31"></div>
+                </div>
+            </div>
+
+            <div class="section config">
+                <h2>Drone Config</h2>
+                <div class="slider-group">
+                    <label for="cfg-mass">Mass: <span id="val-mass">0.5</span> kg</label>
+                    <input type="range" id="cfg-mass" min="0.1" max="2.0" step="0.1" value="0.5">
+                </div>
+                <div class="slider-group">
+                    <label for="cfg-thrust">Max Thrust: <span id="val-thrust">7</span> N</label>
+                    <input type="range" id="cfg-thrust" min="5" max="40" step="1" value="7">
+                </div>
+                <div class="slider-group">
+                    <label for="cfg-drag">Air Drag: <span id="val-drag">0.2</span></label>
+                    <input type="range" id="cfg-drag" min="0.0" max="1.0" step="0.05" value="0.2">
+                </div>
+            </div>
+        </div>
+        <button id="btn-start" class="btn-primary">Start Simulation</button>
+    </div>
+
+    <!-- UI Overlay: Pause Menu -->
+    <div id="pause-menu" class="ui-overlay glass-panel hidden">
+        <h1>Paused</h1>
+        <div class="menu-content">
+            <div class="section tuning">
+                <h2>Rates Tuning</h2>
+                <div class="rates-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <div class="rate-col">
+                        <h3 style="margin-bottom: 10px; color: var(--accent-color);">Roll</h3>
+                        <div class="slider-group">
+                            <label>Center: <span id="val-r-c">200</span></label>
+                            <input type="range" id="tune-r-c" min="10" max="1000" step="10" value="200">
+                        </div>
+                        <div class="slider-group">
+                            <label>Max: <span id="val-r-m">600</span></label>
+                            <input type="range" id="tune-r-m" min="10" max="1500" step="10" value="600">
+                        </div>
+                        <div class="slider-group">
+                            <label>Expo: <span id="val-r-e">0.50</span></label>
+                            <input type="range" id="tune-r-e" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                    </div>
+                    <div class="rate-col">
+                        <h3 style="margin-bottom: 10px; color: var(--accent-color);">Pitch</h3>
+                        <div class="slider-group">
+                            <label>Center: <span id="val-p-c">200</span></label>
+                            <input type="range" id="tune-p-c" min="10" max="1000" step="10" value="200">
+                        </div>
+                        <div class="slider-group">
+                            <label>Max: <span id="val-p-m">600</span></label>
+                            <input type="range" id="tune-p-m" min="10" max="1500" step="10" value="600">
+                        </div>
+                        <div class="slider-group">
+                            <label>Expo: <span id="val-p-e">0.50</span></label>
+                            <input type="range" id="tune-p-e" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                    </div>
+                    <div class="rate-col">
+                        <h3 style="margin-bottom: 10px; color: var(--accent-color);">Yaw</h3>
+                        <div class="slider-group">
+                            <label>Center: <span id="val-y-c">200</span></label>
+                            <input type="range" id="tune-y-c" min="10" max="1000" step="10" value="200">
+                        </div>
+                        <div class="slider-group">
+                            <label>Max: <span id="val-y-m">400</span></label>
+                            <input type="range" id="tune-y-m" min="10" max="1500" step="10" value="400">
+                        </div>
+                        <div class="slider-group">
+                            <label>Expo: <span id="val-y-e">0.50</span></label>
+                            <input type="range" id="tune-y-e" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="section controls">
+                <h2>Quick Actions</h2>
+                <button id="btn-reset" class="btn-secondary">Reset Drone</button>
+                <button id="btn-exit" class="btn-secondary" style="color: var(--danger-color); border-color: var(--danger-glow);">Exit to Main Menu</button>
+                <button id="btn-resume" class="btn-primary">Resume</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flight OSD (On-Screen Display) -->
+    <div id="osd" class="hidden">
+        <div class="osd-element" id="osd-arm">DISARMED</div>
+        <div class="osd-element" id="osd-throttle">THR: 0%</div>
+        <div class="osd-center-crosshair">+</div>
+        <div class="osd-instructions">Press 'Escape' to Pause | Toggle Arm Switch to Fly</div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
