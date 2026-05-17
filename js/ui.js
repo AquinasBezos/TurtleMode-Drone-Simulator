@@ -39,10 +39,24 @@ export class UIHandler {
     }
 
     initEventListeners() {
-        this.elements.btnStart.addEventListener('click', () => {
-            this.hideMenu(this.elements.launchMenu);
-            this.elements.osd.classList.remove('hidden');
-            this.startCallback();
+        this.elements.btnStart.addEventListener('click', async () => {
+            const mapChoice = document.getElementById('map-choice').value;
+            const originalText = this.elements.btnStart.textContent;
+            this.elements.btnStart.textContent = "Loading Map...";
+            this.elements.btnStart.disabled = true;
+            
+            try {
+                await this.startCallback(mapChoice);
+                
+                this.hideMenu(this.elements.launchMenu);
+                this.elements.osd.classList.remove('hidden');
+            } catch (err) {
+                console.error("Failed to start:", err);
+                alert("Failed to load the selected map. Please check the console for details.");
+            } finally {
+                this.elements.btnStart.textContent = originalText;
+                this.elements.btnStart.disabled = false;
+            }
         });
 
         this.elements.btnResume.addEventListener('click', () => {

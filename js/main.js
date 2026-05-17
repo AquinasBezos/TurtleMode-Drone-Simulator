@@ -15,7 +15,7 @@ class Simulator {
         this.ui = new UIHandler(
             this.physics,
             this.input,
-            () => this.start(),
+            (mapChoice) => this.start(mapChoice),
             () => this.resume(),
             () => this.reset(),
             () => this.exit()
@@ -23,6 +23,27 @@ class Simulator {
 
         this.state = 'MENU'; // MENU, PLAYING, PAUSED
         this.lastTime = performance.now();
+        
+        // FPS tracking
+        this.fpsElement = document.getElementById('fps-counter');
+        this.frames = 0;
+        this.lastFpsTime = performance.now();
+
+        // FPS Limiter
+        this.fpsLimitEnabled = false;
+        this.fpsLimit = 60;
+        
+        const fpsToggle = document.getElementById('fps-limit-toggle');
+        const fpsValue = document.getElementById('fps-limit-value');
+        
+        fpsToggle.addEventListener('change', (e) => {
+            this.fpsLimitEnabled = e.target.checked;
+            fpsValue.disabled = !this.fpsLimitEnabled;
+        });
+        
+        fpsValue.addEventListener('input', (e) => {
+            this.fpsLimit = parseInt(e.target.value, 10) || 60;
+        });
 
         // Listen for ESC to pause
         window.addEventListener('keydown', (e) => {
@@ -35,10 +56,11 @@ class Simulator {
         this.animate();
     }
 
-    start() {
+    async start(mapChoice) {
         this.state = 'PLAYING';
         this.lastTime = performance.now();
         this.renderer.resetCamera();
+        await this.renderer.loadMap(mapChoice);
     }
 
     pause() {
@@ -70,8 +92,25 @@ class Simulator {
         requestAnimationFrame(() => this.animate());
 
         const now = performance.now();
+        
+        // Enforce FPS Limit
+        if (this.fpsLimitEnabled && this.fpsLimit > 0) {
+            const minFrameTime = 1000 / this.fpsLimit;
+            if (now - this.lastTime < minFrameTime) {
+                return; // Skip rendering this frame
+            }
+        }
+
         const dt = (now - this.lastTime) / 1000;
         this.lastTime = now;
+
+        // Calculate FPS
+        this.frames++;
+        if (now - this.lastFpsTime >= 1000) {
+            this.fpsElement.textContent = `FPS: ${this.frames}`;
+            this.frames = 0;
+            this.lastFpsTime = now;
+        }
 
         // 1. Get Inputs
         this.input.update();
@@ -82,10 +121,8 @@ class Simulator {
         this.ui.updateDashboard(axes, armed);
 
         if (this.state === 'PLAYING') {
-            // 3. Apply physics if armed
-            if (armed) {
-                this.physics.applyInputs(axes);
-            }
+            // 3. Set physics inputs (applied continuously in body.preStep)
+            this.physics.setInputs(axes, armed);
             
             // 4. Step Physics Engine
             // Cap dt to prevent huge jumps if tab was inactive

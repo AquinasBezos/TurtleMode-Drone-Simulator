@@ -13,7 +13,7 @@ export class PhysicsEngine {
         // Configurable Drone Parameters
         this.params = {
             mass: 0.5, // kg
-            maxThrust: 7, // Newtons
+            maxThrust: 35, // Newtons (Realistic TWR of 7:1)
             drag: 0.2, // Linear & Angular dampening
             rates: {
                 roll: { center: 200, max: 600, expo: 0.5 },
@@ -43,6 +43,17 @@ export class PhysicsEngine {
         // Rotate plane to be horizontal
         this.floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         this.world.addBody(this.floorBody);
+
+        this.currentAxes = null;
+        this.isArmed = false;
+
+        // Apply continuous forces per physics sub-step using World events
+        // This is guaranteed to run before every single internal integration step.
+        this.world.addEventListener('preStep', () => {
+            if (this.isArmed && this.currentAxes) {
+                this.applyInputsInternal(this.currentAxes);
+            }
+        });
 
         this.lastTime = performance.now();
     }
@@ -76,7 +87,12 @@ export class PhysicsEngine {
         this.droneBody.angularVelocity.set(0, 0, 0);
     }
 
-    applyInputs(axes) {
+    setInputs(axes, armed) {
+        this.currentAxes = axes;
+        this.isArmed = armed;
+    }
+
+    applyInputsInternal(axes) {
         // Calculate thrust vector and apply locally at center of mass
         const thrustAmount = axes.throttle * this.params.maxThrust;
         const localThrust = new CANNON.Vec3(0, thrustAmount, 0);
@@ -117,7 +133,6 @@ export class PhysicsEngine {
 
         // Apply corrective torque (P-controller for gyro)
         // Tune pGain to control how snappy the drone stops and starts rotating.
-        // A value of 0.05 is strong given the drone's low moment of inertia.
         const pGain = 0.05;
         const correctiveTorque = new CANNON.Vec3(
             angularVelocityError.x * pGain,

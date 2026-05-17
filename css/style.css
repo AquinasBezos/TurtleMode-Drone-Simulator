@@ -41,6 +41,23 @@ body {
     z-index: 1;
 }
 
+#fps-counter {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--accent-color);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: var(--font-osd);
+    font-size: 0.9rem;
+    font-weight: bold;
+    z-index: 20;
+    pointer-events: none;
+    border: 1px solid var(--panel-border);
+    text-shadow: 0 0 5px var(--accent-glow);
+}
+
 /* Glassmorphism Panels */
 .glass-panel {
     background: var(--panel-bg);
@@ -66,6 +83,8 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .ui-overlay.active {
@@ -89,6 +108,7 @@ h1 {
     letter-spacing: 2px;
     color: var(--accent-color);
     text-shadow: 0 0 10px var(--accent-glow);
+    flex-shrink: 0;
 }
 
 h2 {
@@ -104,6 +124,20 @@ h2 {
     display: flex;
     flex-direction: column;
     gap: 25px;
+}
+
+/* Custom Scrollbar for the overlay */
+.ui-overlay::-webkit-scrollbar {
+    width: 8px;
+}
+.ui-overlay::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    margin: 10px 0;
+}
+.ui-overlay::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 4px;
 }
 
 .section {
@@ -321,6 +355,7 @@ button {
     transition: all 0.2s ease;
     text-transform: uppercase;
     letter-spacing: 1px;
+    flex-shrink: 0;
 }
 
 .btn-primary {
