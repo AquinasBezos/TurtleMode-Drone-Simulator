@@ -8,6 +8,7 @@ export class UIHandler {
         this.resumeCallback = resumeCallback;
         this.resetCallback = resetCallback;
         this.exitCallback = exitCallback;
+        this.speedReadoutEnabled = localStorage.getItem('speedReadoutEnabled') === 'true';
 
         this.elements = {
             launchMenu: document.getElementById('launch-menu'),
@@ -31,7 +32,8 @@ export class UIHandler {
             },
             
             osdArm: document.getElementById('osd-arm'),
-            osdThrottle: document.getElementById('osd-throttle')
+            osdThrottle: document.getElementById('osd-throttle'),
+            speedToggle: document.getElementById('speed-readout-toggle')
         };
 
         this.initEventListeners();
@@ -91,6 +93,38 @@ export class UIHandler {
                 this.elements.gpStatus.className = "status-indicator disconnected";
             }
         });
+
+        const btnAddMap = document.getElementById('btn-add-map');
+        const fileAddMap = document.getElementById('file-add-map');
+        const mapChoice = document.getElementById('map-choice');
+
+        btnAddMap.addEventListener('click', () => {
+            fileAddMap.click();
+        });
+
+        fileAddMap.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const objectUrl = URL.createObjectURL(file);
+            const option = document.createElement('option');
+            option.value = objectUrl;
+            option.textContent = `Custom: ${file.name}`;
+            mapChoice.appendChild(option);
+            mapChoice.value = objectUrl;
+
+            // Clear input so same file can be uploaded again if needed
+            e.target.value = '';
+        });
+
+        // Speed Readout Toggle
+        if (this.elements.speedToggle) {
+            this.elements.speedToggle.checked = this.speedReadoutEnabled;
+            this.elements.speedToggle.addEventListener('change', (e) => {
+                this.speedReadoutEnabled = e.target.checked;
+                localStorage.setItem('speedReadoutEnabled', this.speedReadoutEnabled);
+            });
+        }
     }
 
     bindSliders() {
@@ -195,7 +229,15 @@ export class UIHandler {
                 this.elements.osdArm.textContent = "DISARMED";
                 this.elements.osdArm.classList.remove('armed');
             }
-            this.elements.osdThrottle.textContent = `THR: ${Math.round(axes.throttle * 100)}%`;
+            
+            let throttleText = `THR: ${Math.round(axes.throttle * 100)}%`;
+            if (this.speedReadoutEnabled) {
+                const velocity = this.physics.droneBody.velocity;
+                const speedMs = velocity.length();
+                const speedKph = speedMs * 3.6;
+                throttleText += ` | SPD: ${speedKph.toFixed(1)} km/h`;
+            }
+            this.elements.osdThrottle.textContent = throttleText;
         }
     }
 }

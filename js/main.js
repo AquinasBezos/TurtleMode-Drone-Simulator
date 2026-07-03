@@ -45,10 +45,25 @@ class Simulator {
             this.fpsLimit = parseInt(e.target.value, 10) || 60;
         });
 
-        // Listen for ESC to pause
+        // Listen for ESC to pause, and R to reset
         window.addEventListener('keydown', (e) => {
+            console.log("Key pressed:", e.key, "State:", this.state, "Active Element:", document.activeElement ? document.activeElement.tagName : 'none');
+            
+            // Ignore keypresses if the user is currently typing in an input/select element
+            if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) {
+                return;
+            }
+            
             if (e.key === 'Escape' && this.state === 'PLAYING') {
                 this.pause();
+            } else if (e.key === 'r' || e.key === 'R') {
+                if (this.state === 'PLAYING') {
+                    this.reset();
+                } else if (this.state === 'PAUSED') {
+                    this.ui.hideMenu(this.ui.elements.pauseMenu);
+                    this.ui.elements.osd.classList.remove('hidden');
+                    this.reset();
+                }
             }
         });
 

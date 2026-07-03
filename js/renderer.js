@@ -85,7 +85,9 @@ export class Renderer {
         if (mapName === 'placeholder') {
             this.createPlaceholderEnvironment();
         } else if (mapName === 'bando') {
-            await this.loadBandoEnvironment();
+            await this.loadEnvironment('bando.glb');
+        } else {
+            await this.loadEnvironment(mapName);
         }
     }
 
@@ -125,10 +127,10 @@ export class Renderer {
         }
     }
 
-    loadBandoEnvironment() {
+    loadEnvironment(url) {
         return new Promise((resolve, reject) => {
             const loader = new GLTFLoader();
-            loader.load('bando.glb', (gltf) => {
+            loader.load(url, (gltf) => {
                 const model = gltf.scene;
                 // Enable shadows
                 model.traverse((child) => {
