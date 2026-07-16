@@ -55,6 +55,42 @@ export class PhysicsEngine {
             }
         });
 
+        this.collisionCallback = null;
+
+        // Perform collision check and resolution immediately after every internal physics sub-step
+        this.world.addEventListener('postStep', () => {
+            if (this.collisionCallback) {
+                const collision = this.collisionCallback(this.droneBody.position);
+                if (collision) {
+                    // Resolve position: push drone out of the colliding geometry
+                    this.droneBody.position.x += collision.normal.x * collision.depth;
+                    this.droneBody.position.y += collision.normal.y * collision.depth;
+                    this.droneBody.position.z += collision.normal.z * collision.depth;
+                    
+                    // Resolve velocity: split into normal (bounce) and tangential (friction slide)
+                    const vel = this.droneBody.velocity;
+                    const vNormal = vel.x * collision.normal.x + vel.y * collision.normal.y + vel.z * collision.normal.z;
+                    
+                    if (vNormal < 0) {
+                        const bounce = 0.2; // Restitution coefficient
+                        const friction = 0.95; // Tangential sliding friction
+                        
+                        const vnX = collision.normal.x * vNormal;
+                        const vnY = collision.normal.y * vNormal;
+                        const vnZ = collision.normal.z * vNormal;
+                        
+                        const vtX = vel.x - vnX;
+                        const vtY = vel.y - vnY;
+                        const vtZ = vel.z - vnZ;
+                        
+                        this.droneBody.velocity.x = vtX * friction - vnX * bounce;
+                        this.droneBody.velocity.y = vtY * friction - vnY * bounce;
+                        this.droneBody.velocity.z = vtZ * friction - vnZ * bounce;
+                    }
+                }
+            }
+        });
+
         this.lastTime = performance.now();
     }
 
@@ -144,7 +180,7 @@ export class PhysicsEngine {
     }
 
     step(dt) {
-        this.world.step(1 / 60, dt, 3);
+        this.world.step(1 / 120, dt, 20);
     }
 
     getDroneState() {

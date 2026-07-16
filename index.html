@@ -11,7 +11,9 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js",
+                "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.7.3/build/index.module.js",
+                "three-mesh-bvh/": "https://unpkg.com/three-mesh-bvh@0.7.3/"
             }
         }
     </script>
@@ -33,20 +35,20 @@
                 </div>
                 <p class="small-text">Move sticks to verify. Use an FPV Radio (e.g. TBS Tango, Radiomaster) via USB.</p>
                 <div class="axis-bars">
-                    <div class="bar-container"><label>T (0)</label><div class="bar-fill" id="bar-t"></div></div>
-                    <div class="bar-container"><label>Y (3)</label><div class="bar-fill" id="bar-y"></div></div>
-                    <div class="bar-container"><label>P (2)</label><div class="bar-fill" id="bar-p"></div></div>
-                    <div class="bar-container"><label>R (1)</label><div class="bar-fill" id="bar-r"></div></div>
+                    <div class="bar-container"><label id="lbl-bar-t">T (2)</label><div class="bar-fill" id="bar-t"></div></div>
+                    <div class="bar-container"><label id="lbl-bar-y">Y (3)</label><div class="bar-fill" id="bar-y"></div></div>
+                    <div class="bar-container"><label id="lbl-bar-p">P (1)</label><div class="bar-fill" id="bar-p"></div></div>
+                    <div class="bar-container"><label id="lbl-bar-r">R (0)</label><div class="bar-fill" id="bar-r"></div></div>
                 </div>
             </div>
 
             <div class="section mapping">
                 <h2>Axis Mapping</h2>
                 <div class="mapping-grid">
-                    <div class="map-row"><label>Throttle (Axis):</label> <input type="number" id="map-t-idx" value="0" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-t-rev"> Rev</label></div>
+                    <div class="map-row"><label>Throttle (Axis):</label> <input type="number" id="map-t-idx" value="2" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-t-rev" checked> Rev</label></div>
                     <div class="map-row"><label>Yaw (Axis):</label> <input type="number" id="map-y-idx" value="3" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-y-rev"> Rev</label></div>
-                    <div class="map-row"><label>Pitch (Axis):</label> <input type="number" id="map-p-idx" value="2" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-p-rev"> Rev</label></div>
-                    <div class="map-row"><label>Roll (Axis):</label> <input type="number" id="map-r-idx" value="1" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-r-rev"> Rev</label></div>
+                    <div class="map-row"><label>Pitch (Axis):</label> <input type="number" id="map-p-idx" value="1" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-p-rev" checked> Rev</label></div>
+                    <div class="map-row"><label>Roll (Axis):</label> <input type="number" id="map-r-idx" value="0" min="0" max="15"> <label class="rev-check"><input type="checkbox" id="map-r-rev"> Rev</label></div>
                     <div class="map-row"><label>Arm (Button):</label> <input type="number" id="map-arm-idx" value="0" min="0" max="31"></div>
                 </div>
             </div>
@@ -82,7 +84,10 @@
                 </div>
             </div>
         </div>
-        <button id="btn-start" class="btn-primary">Start Simulation</button>
+        <div style="display: flex; gap: 12px; margin-top: 15px; width: 100%;">
+            <button id="btn-fullscreen-main" class="btn-secondary" style="flex: 1;">Fullscreen</button>
+            <button id="btn-start" class="btn-primary" style="flex: 2;">Start Simulation</button>
+        </div>
     </div>
 
     <!-- UI Overlay: Pause Menu -->
@@ -152,11 +157,14 @@
                     <label class="rev-check" style="flex: unset !important;"><input type="checkbox" id="speed-readout-toggle"> Enable Speed Readout</label>
                 </div>
             </div>
-            <div class="section controls">
+            <div class="section controls" style="display: flex; flex-direction: column; gap: 12px;">
                 <h2>Quick Actions</h2>
-                <button id="btn-reset" class="btn-secondary">Reset Drone</button>
-                <button id="btn-exit" class="btn-secondary" style="color: var(--danger-color); border-color: var(--danger-glow);">Exit to Main Menu</button>
                 <button id="btn-resume" class="btn-primary">Resume</button>
+                <div style="display: flex; gap: 12px; width: 100%;">
+                    <button id="btn-reset" class="btn-secondary" style="flex: 1;">Reset Drone</button>
+                    <button id="btn-fullscreen-pause" class="btn-secondary" style="flex: 1;">Fullscreen</button>
+                </div>
+                <button id="btn-exit" class="btn-secondary" style="color: var(--danger-color); border-color: var(--danger-glow); width: 100%;">Exit to Main Menu</button>
             </div>
         </div>
     </div>

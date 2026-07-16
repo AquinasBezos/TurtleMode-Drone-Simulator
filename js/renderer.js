@@ -2,6 +2,14 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+import { GenerateMeshBVHWorker } from 'three-mesh-bvh/src/workers/GenerateMeshBVHWorker.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+// Extend BufferGeometry and Mesh prototypes with BVH methods
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 export class Renderer {
     constructor(containerId) {
@@ -65,6 +73,9 @@ export class Renderer {
         this.environmentGroup = new THREE.Group();
         this.scene.add(this.environmentGroup);
 
+        this.colliderMesh = null;
+        this.collisionReady = false;
+
         this.currentMapName = null;
         this.loadMap('placeholder');
 
@@ -89,6 +100,9 @@ export class Renderer {
         } else {
             await this.loadEnvironment(mapName);
         }
+
+        // Generate collision BVH for the loaded map
+        await this.generateCollisionBVH();
     }
 
     createPlaceholderEnvironment() {
@@ -146,6 +160,113 @@ export class Renderer {
                 reject(error);
             });
         });
+    }
+
+    generateCollisionBVH() {
+        this.collisionReady = false;
+        
+        // 1. Gather all collidable geometries
+        const geometries = [];
+        this.environmentGroup.traverse((child) => {
+            if (child.isMesh) {
+                // Ignore the drone mesh itself
+                if (child === this.droneMesh) return;
+                
+                child.updateMatrixWorld(true);
+                if (child.geometry && child.geometry.attributes.position) {
+                    const clonedGeom = child.geometry.clone();
+                    clonedGeom.applyMatrix4(child.matrixWorld);
+                    geometries.push(clonedGeom);
+                }
+            }
+        });
+        
+        if (geometries.length === 0) {
+            this.colliderMesh = null;
+            this.collisionReady = true;
+            return Promise.resolve();
+        }
+        
+        // 2. Merge geometries into a single geometry
+        const mergedGeom = BufferGeometryUtils.mergeGeometries(geometries);
+        
+        // Dispose of cloned geometries to free memory
+        geometries.forEach(g => g.dispose());
+        
+        // 3. Build BVH using Web Worker (with synchronous fallback)
+        return new Promise((resolve) => {
+            const buildSync = () => {
+                mergedGeom.computeBoundsTree();
+                this.colliderMesh = new THREE.Mesh(mergedGeom);
+                this.collisionReady = true;
+                console.log("BVH generated successfully on main thread.");
+                resolve();
+            };
+
+            try {
+                console.log("Generating collision BVH tree asynchronously...");
+                const worker = new GenerateMeshBVHWorker();
+                
+                // Set a timeout of 3 seconds. If it doesn't resolve, fall back to sync
+                const timeoutId = setTimeout(() => {
+                    console.warn("Worker BVH generation timed out. Falling back to main thread.");
+                    worker.terminate();
+                    buildSync();
+                }, 3000);
+                
+                worker.generate(mergedGeom).then(bvh => {
+                    clearTimeout(timeoutId);
+                    mergedGeom.boundsTree = bvh;
+                    this.colliderMesh = new THREE.Mesh(mergedGeom);
+                    this.collisionReady = true;
+                    console.log("BVH generated successfully via Web Worker.");
+                    worker.terminate();
+                    resolve();
+                }).catch(err => {
+                    clearTimeout(timeoutId);
+                    console.warn("Worker BVH generation failed, falling back to main thread:", err);
+                    worker.terminate();
+                    buildSync();
+                });
+            } catch (e) {
+                console.warn("Failed to initialize GenerateMeshBVHWorker, running on main thread:", e);
+                buildSync();
+            }
+        });
+    }
+
+    checkCollision(position, radius) {
+        if (!this.collisionReady || !this.colliderMesh) return null;
+        
+        const boundsTree = this.colliderMesh.geometry.boundsTree;
+        if (!boundsTree) return null;
+        
+        const targetObj = {};
+        const posVec = new THREE.Vector3(position.x, position.y, position.z);
+        const result = boundsTree.closestPointToPoint(posVec, targetObj);
+        
+        if (result && result.distance < radius) {
+            // Collision detected!
+            const dist = result.distance;
+            const closestPoint = result.point;
+            const depth = radius - dist;
+            const normal = new THREE.Vector3().subVectors(posVec, closestPoint);
+            if (normal.lengthSq() > 0.0001) {
+                normal.normalize();
+            } else {
+                // Default fallback normal
+                normal.set(0, 1, 0);
+            }
+            
+            return {
+                closestPoint,
+                dist,
+                depth,
+                normal
+            };
+        }
+        
+        return null;
     }
 
     onWindowResize() {

@@ -17,17 +17,17 @@ export class InputHandler {
         // Typical FPV Radio axis mapping (can be adjusted via UI later)
         // Adjust these indices based on the controller.
         this.mapping = {
-            throttle: 0, // Usually Left Stick Y (but might be different on raw inputs)
-            yaw: 3,      // Usually Left Stick X
-            pitch: 2,    // Usually Right Stick Y
-            roll: 1,     // Usually Right Stick X
-            armButton: 0 // Button index for arming
+            throttle: 2,
+            yaw: 3,
+            pitch: 1,
+            roll: 0,
+            armButton: 0
         };
 
         this.reverse = {
-            throttle: false,
+            throttle: true,
             yaw: false,
-            pitch: false,
+            pitch: true,
             roll: false
         };
 

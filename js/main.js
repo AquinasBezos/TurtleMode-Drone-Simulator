@@ -11,6 +11,9 @@ class Simulator {
         this.physics = new PhysicsEngine();
         this.input = new InputHandler();
         
+        // Register collision check callback to evaluate inside the physics sub-step
+        this.physics.collisionCallback = (pos) => this.renderer.checkCollision(pos, 0.2);
+        
         // Setup UI
         this.ui = new UIHandler(
             this.physics,
@@ -139,7 +142,7 @@ class Simulator {
             // 3. Set physics inputs (applied continuously in body.preStep)
             this.physics.setInputs(axes, armed);
             
-            // 4. Step Physics Engine
+            // 4. Step Physics Engine (sub-steps inside this method will fire the 'postStep' listener and handle collisions)
             // Cap dt to prevent huge jumps if tab was inactive
             this.physics.step(Math.min(dt, 0.1));
             

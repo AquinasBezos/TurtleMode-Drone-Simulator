@@ -19,6 +19,8 @@ export class UIHandler {
             btnResume: document.getElementById('btn-resume'),
             btnReset: document.getElementById('btn-reset'),
             btnExit: document.getElementById('btn-exit'),
+            btnFullscreenMain: document.getElementById('btn-fullscreen-main'),
+            btnFullscreenPause: document.getElementById('btn-fullscreen-pause'),
             
             gpStatus: document.getElementById('gamepad-status'),
             stickLeft: document.getElementById('stick-left'),
@@ -125,6 +127,59 @@ export class UIHandler {
                 localStorage.setItem('speedReadoutEnabled', this.speedReadoutEnabled);
             });
         }
+
+        // Fullscreen Toggle Buttons
+        const toggleFullscreen = () => {
+            console.log("toggleFullscreen called.");
+            const doc = document;
+            const docEl = doc.documentElement;
+            
+            // Check cross-browser fullscreen state
+            const isFS = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+            
+            if (!isFS) {
+                console.log("Requesting fullscreen...");
+                const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+                if (requestFS) {
+                    requestFS.call(docEl).catch(err => {
+                        console.error(`Fullscreen request failed: ${err.message}`, err);
+                    });
+                } else {
+                    console.error("Fullscreen API not supported on this browser.");
+                }
+            } else {
+                console.log("Exiting fullscreen...");
+                const exitFS = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+                if (exitFS) {
+                    exitFS.call(doc);
+                } else {
+                    console.error("Exit fullscreen API not supported on this browser.");
+                }
+            }
+        };
+
+        if (this.elements.btnFullscreenMain) {
+            this.elements.btnFullscreenMain.addEventListener('click', toggleFullscreen);
+        }
+        if (this.elements.btnFullscreenPause) {
+            this.elements.btnFullscreenPause.addEventListener('click', toggleFullscreen);
+        }
+
+        const handleFullscreenChange = () => {
+            const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+            console.log("Fullscreen state changed. Active:", isFullscreen);
+            if (this.elements.btnFullscreenMain) {
+                this.elements.btnFullscreenMain.textContent = isFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
+            }
+            if (this.elements.btnFullscreenPause) {
+                this.elements.btnFullscreenPause.textContent = isFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
+            }
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     }
 
     bindSliders() {
@@ -157,18 +212,40 @@ export class UIHandler {
         bindSlider('tune-y-m', 'val-y-m', (val) => this.physics.updateConfig({ rates: { yaw: { max: val } } }));
         bindSlider('tune-y-e', 'val-y-e', (val) => this.physics.updateConfig({ rates: { yaw: { expo: val } } }));
 
+        const updateBarLabels = () => {
+            const throttleIdx = document.getElementById('map-t-idx')?.value ?? '2';
+            const yawIdx = document.getElementById('map-y-idx')?.value ?? '3';
+            const pitchIdx = document.getElementById('map-p-idx')?.value ?? '1';
+            const rollIdx = document.getElementById('map-r-idx')?.value ?? '0';
+
+            const lblT = document.getElementById('lbl-bar-t');
+            const lblY = document.getElementById('lbl-bar-y');
+            const lblP = document.getElementById('lbl-bar-p');
+            const lblR = document.getElementById('lbl-bar-r');
+
+            if (lblT) lblT.textContent = `T (${throttleIdx})`;
+            if (lblY) lblY.textContent = `Y (${yawIdx})`;
+            if (lblP) lblP.textContent = `P (${pitchIdx})`;
+            if (lblR) lblR.textContent = `R (${rollIdx})`;
+        };
+
         // Mapping Inputs
         const bindMapping = (id, key) => {
             const input = document.getElementById(id);
-            input.addEventListener('change', (e) => {
-                this.inputHandler.updateMapping('axis', key, e.target.value);
-            });
+            if (input) {
+                input.addEventListener('change', (e) => {
+                    this.inputHandler.updateMapping('axis', key, e.target.value);
+                    updateBarLabels();
+                });
+            }
         };
         const bindReverse = (id, key) => {
             const checkbox = document.getElementById(id);
-            checkbox.addEventListener('change', (e) => {
-                this.inputHandler.updateMapping('reverse', key, e.target.checked);
-            });
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    this.inputHandler.updateMapping('reverse', key, e.target.checked);
+                });
+            }
         };
 
         bindMapping('map-t-idx', 'throttle');
@@ -181,6 +258,40 @@ export class UIHandler {
         bindReverse('map-y-rev', 'yaw');
         bindReverse('map-p-rev', 'pitch');
         bindReverse('map-r-rev', 'roll');
+
+        // Force an initial update of the input handler mapping from the DOM values on load.
+        // This synchronizes the input handler with whatever the DOM elements contain (including browser autofill or defaults).
+        const syncMappingFromDOM = () => {
+            const inputs = [
+                { id: 'map-t-idx', key: 'throttle', type: 'axis' },
+                { id: 'map-y-idx', key: 'yaw', type: 'axis' },
+                { id: 'map-p-idx', key: 'pitch', type: 'axis' },
+                { id: 'map-r-idx', key: 'roll', type: 'axis' },
+                { id: 'map-arm-idx', key: 'armButton', type: 'axis' }
+            ];
+            const checkboxes = [
+                { id: 'map-t-rev', key: 'throttle', type: 'reverse' },
+                { id: 'map-y-rev', key: 'yaw', type: 'reverse' },
+                { id: 'map-p-rev', key: 'pitch', type: 'reverse' },
+                { id: 'map-r-rev', key: 'roll', type: 'reverse' }
+            ];
+
+            inputs.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (el) {
+                    this.inputHandler.updateMapping(item.type, item.key, el.value);
+                }
+            });
+            checkboxes.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (el) {
+                    this.inputHandler.updateMapping(item.type, item.key, el.checked);
+                }
+            });
+            updateBarLabels();
+        };
+
+        syncMappingFromDOM();
     }
 
     showPauseMenu() {
