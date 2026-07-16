@@ -24,7 +24,10 @@ export class Renderer {
         this.camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.01, 1000);
         
         // Renderer setup
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            powerPreference: 'high-performance'
+        });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.shadowMap.enabled = true;
